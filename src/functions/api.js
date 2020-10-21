@@ -1,5 +1,6 @@
-import { BASE_URL } from '../config';
 import { BehaviorSubject } from 'rxjs';
+
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
 export const currentUserObservable = new BehaviorSubject(null);
 
