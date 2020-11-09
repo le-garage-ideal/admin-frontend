@@ -15,8 +15,8 @@
     "rxjs": "^6.6.3"
   },
   "scripts": {
-    "start": "set PORT=3001 && react-scripts start",
-    "build": "react-scripts build",
+    "start": "set \"PORT=3001\" && react-scripts start",
+    "build": "set \"INLINE_RUNTIME_CHUNK=false\" && set \"REACT_APP_PUBLIC_URL=https://perfect-garage-admin.herokuapp.com\" && react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
