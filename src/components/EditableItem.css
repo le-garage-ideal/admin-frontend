@@ -1,0 +1,16 @@
+.item-button {
+  padding: 5px;
+  margin: 2px;
+  display: flex;
+}
+
+.icon-button {
+  max-height: 50%;
+  font-size: 10px;
+  color: var(--text-bright)
+}
+
+.icon-button-container {
+  display: flex;
+  flex-direction: column;
+}

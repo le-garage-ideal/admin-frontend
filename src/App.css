@@ -61,6 +61,17 @@
   box-sizing: border-box;
 }
 
+.item-button-container {
+  display: flex;
+}
+
+.add-button {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  margin: auto;
+}
+
 @media(orientation: portrait) {
   .App-header .title-logo h1 {
     white-space: pre-line;

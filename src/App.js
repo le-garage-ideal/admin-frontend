@@ -5,23 +5,15 @@ import { CrudCars } from './components/CrudCars';
 import { Menu, CHOOSE_IMAGES_MENU, CREATE_UPDATE_DELETE_VARIANTS } from './components/Menu';
 import { sortBrands, sortModels } from './functions/sort';
 import { fetchInitData, noCarImageMatch, selectCarImage, createCar, removeCar, computeSelectedCars } from './functions/car';
+import { createBrand, updateBrand, deleteBrand } from './functions/brand';
+import { createModel, updateModel, deleteModel } from './functions/model';
+import { refreshCollection, refreshCollectionRemove } from './functions/collection';
 import { authenticate, currentUserObservable } from './functions/api';
 import { Login } from './components/Login';
+import { Brand } from './components/Brand';
+import { Model } from './components/Model';
+import { EditableItem } from './components/EditableItem';
 import './App.css';
-
-const computeButtonClassNames = (selected, okCount, totalCount) => {
-  const buttonClassNames = [];
-  if (selected) {
-    buttonClassNames.push('selected-button');
-  }
-  if (okCount === 0) {
-    buttonClassNames.push('group-incomplete-button');
-  }
-  if (okCount < totalCount) {
-    buttonClassNames.push('group-empty-button');
-  }
-  return buttonClassNames;
-};
 
 class App extends React.Component {
 
@@ -35,8 +27,10 @@ class App extends React.Component {
       selectedModels: [],
       selectedModel: null,
       selectedCars: [],
-      selectedMenu: null,
+      selectedMenu: CREATE_UPDATE_DELETE_VARIANTS,
       errorMessage: null,
+      displayAddBrand: false,
+      displayAddModel: false,
     };
 
     this.loginProcess = this.loginProcess.bind(this);
@@ -86,22 +80,14 @@ class App extends React.Component {
   }
 
   refreshState(updatedCar) {
-    const updatedCarIndex = this.state.cars.findIndex(c => c._id === updatedCar._id);
-    const updatedCars = [...this.state.cars];
-    if (updatedCarIndex >= 0) {
-      updatedCars[updatedCarIndex] = updatedCar;
-    } else {
-      updatedCars.push(updatedCar);
-    }
+    const updatedCars = refreshCollection(updatedCar, this.state.cars);
     const updatedSelectedCars = this.state.selectedModel ? computeSelectedCars(updatedCars, this.state.selectedModel) : [];
     this.setState({selectedCars: updatedSelectedCars, cars: updatedCars});
   }
 
   refreshStateRemove(carId) {
-    const updatedCarIndex = this.state.cars.findIndex(c => c._id === carId);
-    if (updatedCarIndex >= 0) {
-      const updatedCars = [...this.state.cars];
-      updatedCars.splice(updatedCarIndex, 1);
+    const updatedCars = refreshCollectionRemove(carId, this.state.cars);
+    if (updatedCars) {
       const updatedSelectedCars = this.state.selectedModel ? computeSelectedCars(updatedCars, this.state.selectedModel) : [];
       this.setState({ selectedCars: updatedSelectedCars, cars: updatedCars });
     }
@@ -122,41 +108,86 @@ class App extends React.Component {
       cars,
       selectedCars,
       errorMessage,
+      displayAddBrand,
+      displayAddModel,
     } = this.state;
 
-    const brandElements = brands.sort(sortBrands).map(brand => {
-      const brandStats = brandMap[brand._id];
-      const okCount = brandStats && brandStats.okCount ? brandStats.okCount : 0;
-      const totalCount = brandStats && brandStats.totalCount ? brandStats.totalCount : 0;
-      const isSelected = selectedBrand && selectedBrand._id === brand._id;
-      const buttonClassNames = computeButtonClassNames(isSelected, okCount, totalCount);
-      return (
-        <button key={ brand._id } onClick={() => {
+    const brandElements = brands.sort(sortBrands).map(brand => (
+      <Brand
+        brand={brand}
+        selectedBrand={selectedBrand}
+        brandMap={brandMap}
+        select={() => {
           const selectedModels = models.filter(model => model.brand.name === brand.name);
-            this.setState({selectedBrand: brand, selectedModels, selectedCars: [], selectedModel: null});
-          }}
-          className={buttonClassNames.join(' ')}>
-          { brand.name }
-        </button>
-      );
-    });
+          this.setState({selectedBrand: brand, selectedModels, selectedCars: [], selectedModel: null});
+        }}
+        update={name => {
+          updateBrand({...brand, name})
+            .then(updatedBrand => this.setState({brands: refreshCollection(updatedBrand, brands)}));
+        }}
+        remove={() => {
+          deleteBrand(brand)
+            .then(() => this.setState({brands: refreshCollectionRemove(brand._id, brands)}));
+        }}
+      />
+    ));
 
-    const modelElements = selectedModels.sort(sortModels).map(model => {
-      const modelStats = modelMap[model._id];
-      const okCount = modelStats && modelStats.okCount ? modelStats.okCount : 0;
-      const totalCount = modelStats && modelStats.totalCount ? modelStats.totalCount : 0;
-      const isSelected = selectedModel && selectedModel._id === model._id;
-      const buttonClassNames = computeButtonClassNames(isSelected, okCount, totalCount);
-      return (
-        <button key={ model._id } title={ model.favcarsName } onClick={() => {
+    if (displayAddBrand) {
+      brandElements.push((
+        <EditableItem
+          key="add-brand"
+          initValue=""
+          initEdit={true}
+          buttonClassNames={[]}
+          itemUpdate={name => { createBrand(name).then(createdBrand => this.setState({brands: [...brands, createdBrand], displayAddBrand: false})); }}
+          itemCancel={() => this.setState({displayAddBrand: false})}
+        />
+      ));
+    } else {
+      brandElements.push((
+        <button className="add-button" onClick={() => this.setState({displayAddBrand: true})}>➕</button>
+      ));
+    }
+
+    const modelElements = selectedModels.sort(sortModels).map(model => (
+      <Model
+        model={model}
+        modelMap={modelMap}
+        selectedModel={selectedModel}
+        select={() => {
           const selectedCars = computeSelectedCars(cars, model);
             this.setState({selectedModel: model, selectedCars});
-          }}
-          className={buttonClassNames.join(' ')}>
-          { model.name }
-        </button>
-      );
-    });
+        }}
+        update={name => {
+          updateModel({...model, name})
+            .then(updatedModel => this.setState({models: refreshCollection(updatedModel, models)}));
+        }}
+        remove={() => {
+          deleteModel(model)
+            .then(() => this.setState({models: refreshCollectionRemove(model._id, models)}));
+        }}
+      />
+    ));
+
+    if (selectedBrand) {
+      if (displayAddModel) {
+        modelElements.push((
+          <EditableItem
+            key="add-model"
+            initValue=""
+            initEdit={true}
+            buttonClassNames={[]}
+            itemUpdate={name => { createModel({brand: {name: selectedBrand.name}, name}).then(createdModel => this.setState({models: [...models, createdModel], displayAddModel: false})); }}
+            itemCancel={() => this.setState({displayAddBrand: false})}
+          />
+        ));
+      } else {
+        modelElements.push((
+          <button className="add-button" onClick={() => this.setState({displayAddModel: true})}>➕</button>
+        ));
+      }
+    }
+
 
     let selectedMenuElement = null;
     switch (selectedMenu) {
@@ -191,9 +222,9 @@ class App extends React.Component {
     const headerBrandModelElements = (
       <>
         { !!selectedMenu && <hr className="separator" />}
-        <section>{selectedMenu && brandElements}</section>
+        <section className="item-button-container">{selectedMenu && brandElements}</section>
         { selectedModels.length > 0 && <hr className="separator" />}
-        <section>{modelElements}</section>
+        <section className="item-button-container">{modelElements}</section>
       </>
     );
 
@@ -207,7 +238,7 @@ class App extends React.Component {
                 Admin
                 App
               </h1>
-              {user && <div style={{ marginLeft: '10px' }}>👤{` ${user.username}`}</div>}
+              {user && <div style={{ marginLeft: '10px' }}><span role="img" aria-label="Connected user">👤</span>{` ${user.username}`}</div>}
             </section>
             {user && <Menu menuSelect={selectedMenu => this.setState({ selectedMenu })} />}
           </section>

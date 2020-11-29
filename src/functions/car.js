@@ -59,14 +59,13 @@ export const createCar = car => {
   return authFetch('/cars', {
       method: 'post',
     body: JSON.stringify(car),
-    }).then(response => response.json())
-    .then(addedCar => console.log(addedCar));
+    }).then(response => response.json());
 };
 
 export const removeCar = (carId) => {
   return authFetch('/cars/' + carId, {
     method: 'delete',
-    }).then(response => console.log(response));
+    });
      
 };
 
